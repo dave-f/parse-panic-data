@@ -68,8 +68,8 @@ func TestMultipleBytes(t *testing.T) {
 }
 
 func TestMultipleBytesWithWhitespace(t *testing.T) {
-	got, _ := parseBytesFromString(" 1, 2 ,3 ")
-	want := []byte{1, 2, 3}
+	got, _ := parseBytesFromString(" 1, 2 ,3, 4")
+	want := []byte{1, 2, 3, 4}
 
 	if !SlicesAreEqual(got, want) {
 		t.Errorf("Expected %v got %v", want, got)
@@ -103,4 +103,11 @@ func TestScreenFlagStrings(t *testing.T) {
 	}
 }
 
-// TODO: test OR [byte] OR [byte]
+func TestBytesWithOrStatements(t *testing.T) {
+	got, _ := parseBytesFromString("&01 OR &02 OR &03")
+	want := []byte{3}
+
+	if !SlicesAreEqual(got, want) {
+		t.Errorf("Expected %v got %v", want, got)
+	}
+}

@@ -1,16 +1,49 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 )
 
+const (
+	OpNone = iota
+	OpAnd
+	OpOr
+	OpXor
+)
+
+var ErrEmptyString = errors.New("empty string")
+
 func init() {
 
 }
 
+func actualParseByte(s string) (b byte, err error) {
+	base := 10
+
+	if strings.HasPrefix(s, "&") || strings.HasPrefix(s, "$") {
+		base = 16
+		s = s[1:]
+	} else if strings.HasPrefix(s, "%") {
+		base = 2
+		s = s[1:]
+	}
+
+	pb, err := strconv.ParseUint(s, base, 8)
+	b = byte(pb)
+
+	return
+}
+
 func parseByte(s string) (b byte, err error) {
+
+	if len(s) == 0 {
+		err = ErrEmptyString
+		return
+	}
 
 	// Effects
 	s = strings.ReplaceAll(s, "_effectNone", "&00")
@@ -29,18 +62,34 @@ func parseByte(s string) (b byte, err error) {
 	s = strings.ReplaceAll(s, "_bitFlipped", "&20")
 	s = strings.ReplaceAll(s, "_bitHookable", "&10")
 
-	base := 10
+	scanner := bufio.NewScanner(strings.NewReader(s))
+	scanner.Split(bufio.ScanWords)
 
-	if strings.HasPrefix(s, "&") || strings.HasPrefix(s, "$") {
-		base = 16
-		s = s[1:]
-	} else if strings.HasPrefix(s, "%") {
-		base = 2
-		s = s[1:]
+	currentOp := OpNone
+	var current byte
+
+scan:
+	for scanner.Scan() {
+		if scanner.Text() == "OR" {
+			currentOp = OpOr
+			continue
+		}
+		switch currentOp {
+		case OpOr:
+			current, err = actualParseByte(scanner.Text())
+			if err != nil {
+				break scan
+			}
+			b |= current
+			currentOp = OpNone
+		case OpNone:
+			current, err = actualParseByte(scanner.Text())
+			if err != nil {
+				break scan
+			}
+			b = current
+		}
 	}
-
-	pb, err := strconv.ParseUint(s, base, 8)
-	b = byte(pb)
 
 	return
 }

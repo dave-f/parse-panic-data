@@ -2,6 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
+
 	//"errors"
 	//"flag"
 	"fmt"
@@ -31,7 +34,7 @@ type Screen struct {
 
 var StringTable []string
 var StringRegexp = regexp.MustCompile(`^\.s[0-9]+:`)
-var ScreenHeaders [][5]byte
+var ScreenHeaders [][8]byte
 
 func buildStringTable() error {
 	f, err := os.Open("../panic/memory.asm")
@@ -77,8 +80,9 @@ func buildLevelTable() error {
 
 	scanner := bufio.NewScanner(f)
 	screens := 0
-	numBlocks := 0
+	bytesExpected := 0
 	state := Undefined
+	var thisScreen bytes.Buffer
 
 loop:
 	for scanner.Scan() {
@@ -95,13 +99,16 @@ loop:
 				continue
 			}
 			if strings.HasPrefix(l, "EQUB") {
-				//fmt.Println("Start level")
-				_, err := parseBytesFromString(l[4:])
+				fmt.Println("Start level")
+				b, err := parseBytesFromString(l[4:])
 				if err != nil {
 					return err
 				}
-				//fmt.Printf("%d",b)
-				numBlocks = 4
+				if len(b) > 8 {
+					return errors.New("unexpected byte count")
+				}
+				thisScreen.Write(b)
+				bytesExpected = 8 - len(b)
 				state = LevelBlock
 				continue
 			}
@@ -113,12 +120,20 @@ loop:
 			continue
 		case LevelBlock:
 			if strings.HasPrefix(l, "EQUB") {
-				_, _ = parseBytesFromString(l[4:])
-				numBlocks--
-				if numBlocks == 0 {
+				b, err := parseBytesFromString(l[4:])
+				if err != nil {
+					return err
+				}
+				if len(b) > bytesExpected {
+					return errors.New("unexpected byte count")
+				}
+				thisScreen.Write(b)
+				bytesExpected = bytesExpected - len(b)
+				if bytesExpected == 0 {
 					fmt.Println("End level")
 					screens++
-					//fmt.Printf("%d\n",0)
+					ScreenHeaders = append(ScreenHeaders, [8]byte(thisScreen.Bytes()))
+					thisScreen.Reset()
 					state = Undefined
 				}
 				continue
