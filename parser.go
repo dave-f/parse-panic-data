@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -106,8 +105,6 @@ func parseBytesFromString(s string) (r []byte, err error) {
 
 	s = strings.TrimSpace(s)
 
-	fmt.Println("Input", s)
-
 	parts := strings.Split(s, ",")
 
 	for _, v := range parts {
@@ -120,8 +117,6 @@ func parseBytesFromString(s string) (r []byte, err error) {
 
 		r = append(r, b)
 	}
-
-	fmt.Printf("Output %v\n", r)
 
 	return
 }

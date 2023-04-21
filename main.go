@@ -90,16 +90,13 @@ loop:
 		switch state {
 		case Undefined:
 			if l == ".screenTable:" {
-				//fmt.Println("End of screen table")
 				break loop
 			}
 			if l == "IF FALSE" {
-				//fmt.Println("If false block")
 				state = FalseBlock
 				continue
 			}
 			if strings.HasPrefix(l, "EQUB") {
-				fmt.Println("Start level")
 				b, err := parseBytesFromString(l[4:])
 				if err != nil {
 					return err
@@ -114,7 +111,6 @@ loop:
 			}
 		case FalseBlock:
 			if l == "ENDIF" {
-				//fmt.Println("EndIf")
 				state = Undefined
 			}
 			continue
@@ -130,7 +126,6 @@ loop:
 				thisScreen.Write(b)
 				bytesExpected = bytesExpected - len(b)
 				if bytesExpected == 0 {
-					fmt.Println("End level")
 					screens++
 					ScreenHeaders = append(ScreenHeaders, [8]byte(thisScreen.Bytes()))
 					thisScreen.Reset()
@@ -161,4 +156,8 @@ func main() {
 	}
 
 	fmt.Printf("Found %d screen headers\n", len(ScreenHeaders))
+
+	for i, v := range ScreenHeaders {
+		fmt.Printf("%d) %s\n", i, StringTable[v[0]&0x1f])
+	}
 }
