@@ -172,6 +172,7 @@ func buildScreenData() error {
 	state := Searching
 	var unpackedScreen [][8]byte
 	rowCount := 0 // pack in at 12
+	screen40 := false
 
 	for scanner.Scan() {
 		l := strings.TrimSpace(scanner.Text())
@@ -183,11 +184,11 @@ func buildScreenData() error {
 			}
 			if ScreenRegexp.MatchString(scanner.Text()) {
 				if strings.HasPrefix(scanner.Text(), ".screen40Data") {
-					fmt.Println("Ignoring screen 40 for now")
-					continue
+					screen40 = true
 				} else {
-					fmt.Println("Decoding", scanner.Text())
+					screen40 = false
 				}
+				fmt.Println("Decoding", scanner.Text())
 				state = DecodingRow
 			}
 		case FalseBlock:
@@ -202,11 +203,16 @@ func buildScreenData() error {
 					return err
 				}
 				if len(b) == 1 {
-					// If there is only one byte this row, it must be 0 to indicate no data
-					if b[0] != 0 {
+					// Special case for screen 40
+					if screen40 && b[0] == 0x68 {
+						fmt.Println("Patching special byte")
+						unpackedScreen[rowCount-1][7] = 0x68
+						continue
+					} else if b[0] != 0 { // If there is only one byte this row, it must be 0 to indicate no data
 						return errors.New("unexpected byte")
+					} else {
+						unpackedScreen = append(unpackedScreen, [8]byte{})
 					}
-					unpackedScreen = append(unpackedScreen, [8]byte{})
 				} else {
 					// Do the decode
 					// But remember the RLE packing
@@ -259,6 +265,7 @@ func buildScreenData() error {
 				if rowCount == 12 {
 					rowCount = 0
 					state = Searching
+					unpackedScreen = nil
 				}
 			}
 		}
