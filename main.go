@@ -76,6 +76,7 @@ func buildLevelTable() error {
 
 	const (
 		Undefined = iota
+		Searching
 		FalseBlock
 		LevelBlock
 	)
@@ -91,14 +92,14 @@ func buildLevelTable() error {
 	scanner := bufio.NewScanner(f)
 	screens := 0
 	bytesExpected := 0
-	state := Undefined
+	state := Searching
 	var thisScreen bytes.Buffer
 
 loop:
 	for scanner.Scan() {
 		l := strings.TrimSpace(scanner.Text())
 		switch state {
-		case Undefined:
+		case Searching:
 			if l == ".screenTable:" {
 				break loop
 			}
@@ -121,7 +122,7 @@ loop:
 			}
 		case FalseBlock:
 			if l == "ENDIF" {
-				state = Undefined
+				state = Searching
 			}
 			continue
 		case LevelBlock:
@@ -139,7 +140,7 @@ loop:
 					screens++
 					ScreenHeaders = append(ScreenHeaders, [8]byte(thisScreen.Bytes()))
 					thisScreen.Reset()
-					state = Undefined
+					state = Searching
 				}
 				continue
 			}
@@ -156,6 +157,7 @@ func buildScreenData() error {
 		Undefined = iota
 		Searching
 		DecodingRow
+		FalseBlock
 	)
 
 	f, err := os.Open("../panic/leveldata.asm")
@@ -175,10 +177,24 @@ func buildScreenData() error {
 		l := strings.TrimSpace(scanner.Text())
 		switch state {
 		case Searching:
+			if l == "IF FALSE" {
+				state = FalseBlock
+				continue
+			}
 			if ScreenRegexp.MatchString(scanner.Text()) {
-				fmt.Println("Decoding", scanner.Text())
+				if strings.HasPrefix(scanner.Text(), ".screen40Data") {
+					fmt.Println("Ignoring screen 40 for now")
+					continue
+				} else {
+					fmt.Println("Decoding", scanner.Text())
+				}
 				state = DecodingRow
 			}
+		case FalseBlock:
+			if l == "ENDIF" {
+				state = Searching
+			}
+			continue
 		case DecodingRow:
 			if strings.HasPrefix(l, "EQUB") {
 				b, err := parseBytesFromString(l[4:])
