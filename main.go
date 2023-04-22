@@ -3,45 +3,41 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/xml"
 	"errors"
-
-	//"errors"
-	//"flag"
 	"fmt"
-	"regexp"
-
-	//"io"
-	//"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 )
 
 type Tile struct {
-	Index     int
-	FlippedX  bool
-	FlippedY  bool
-	Hookable  bool
-	Climbable bool
+	Index      int
+	FlippedX   bool
+	FlippedY   bool
+	Hookable   bool
+	Climbable  bool
+	Collidable bool
 }
 
 type Screen struct {
-	Tileset       int
-	StringIndex   int
-	ScreenIndex   int
-	Flipped       bool
-	EffectFlags   int
-	ItemCollected bool
-	NumberAliens  int
-	ExitNorth     int
-	ExitSouth     int
-	ExitEast      int
-	ExitWest      int
-	Data          [8][12]Tile
+	Tileset      int `xml:"-"`
+	ScreenIndex  int
+	StringIndex  int
+	EffectFlags  int
+	HasItem      bool
+	NumberAliens int
+	ExitNorth    int
+	ExitSouth    int
+	ExitEast     int
+	ExitWest     int
 }
 
+var Screens []Screen
 var StringTable []string
 var ScreenHeaders [][8]byte
-var ScreenData [][]byte
+var ScreenData [][12][8]byte
+var ScreenTiles [][12][8]Tile
 
 var StringRegexp = regexp.MustCompile(`^\.s[0-9]+:`)
 var ScreenRegexp = regexp.MustCompile(`^\.screen[0-9]+Data`)
@@ -256,13 +252,17 @@ func buildScreenData() error {
 						}
 						controlByte = controlByte << 1
 					}
-					// unpack
-					// assert lenth of unpacked is the same?
-					//}
+					if len(unpackedRow) != 8 {
+						return errors.New("unexpected row length")
+					}
 					unpackedScreen = append(unpackedScreen, unpackedRow)
 				}
 				rowCount++
 				if rowCount == 12 {
+					if len(unpackedScreen) != 12 {
+						return errors.New("unexpcted screensize")
+					}
+					ScreenData = append(ScreenData, [12][8]byte(unpackedScreen))
 					rowCount = 0
 					state = Searching
 					unpackedScreen = nil
@@ -274,6 +274,29 @@ func buildScreenData() error {
 	return scanner.Err()
 }
 
+func buildScreenTiles() error {
+	for _, v := range ScreenData {
+		var newScreenTile [12][8]Tile
+		for i := 0; i < 12; i++ {
+			for j := 0; j < 8; j++ {
+				thisByte := v[i][j]
+				newTile := Tile{
+					Index:      int(thisByte & 0xf),
+					FlippedX:   thisByte&0x20 == 0x20,
+					FlippedY:   false,
+					Hookable:   thisByte&0x10 == 0x10,
+					Climbable:  thisByte&0x80 == 0x80,
+					Collidable: thisByte&0x40 == 0x40,
+				}
+				newScreenTile[i][j] = newTile
+			}
+		}
+		ScreenTiles = append(ScreenTiles, newScreenTile)
+	}
+
+	return nil
+}
+
 func main() {
 
 	err := buildStringTable()
@@ -282,18 +305,10 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("Found %d strings\n", len(StringTable))
-
 	err = buildLevelTable()
 
 	if err != nil {
 		panic(err)
-	}
-
-	fmt.Printf("Found %d screen headers\n", len(ScreenHeaders))
-
-	for i, v := range ScreenHeaders {
-		fmt.Printf("%d) %s\n", i, StringTable[v[0]&0x1f])
 	}
 
 	err = buildScreenData()
@@ -302,5 +317,47 @@ func main() {
 		panic(err)
 	}
 
-	// TODO Build proper level structure ready to marshal to XML/JSON
+	err = buildScreenTiles()
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Build proper level structure ready to marshal to XML/JSON
+	for _, v := range ScreenHeaders {
+		newScreen := Screen{
+			Tileset:      0,
+			ScreenIndex:  int(v[1]),
+			StringIndex:  int(v[0] & 0x1f),
+			EffectFlags:  int(v[2] & 0xf0),
+			HasItem:      v[2]&0x4 == 0x4,
+			NumberAliens: 0,
+			ExitNorth:    int(v[3]),
+			ExitSouth:    int(v[4]),
+			ExitEast:     int(v[5]),
+			ExitWest:     int(v[6]),
+		}
+		Screens = append(Screens, newScreen)
+	}
+
+	type OutputFile struct {
+		Strings []string      `xml:"Strings>String"`
+		Screens []Screen      `xml:"ScreenHeaders>Header"`
+		Tiles   [][12][8]Tile `xml:"Screens>Data"`
+	}
+
+	var Test OutputFile
+
+	Test.Strings = StringTable
+	Test.Screens = Screens
+	Test.Tiles = ScreenTiles
+
+	b, err := xml.Marshal(Test)
+
+	if err != nil {
+		panic(err)
+	}
+
+	os.WriteFile("C:/Dave/test.xml", b, 0666)
+	fmt.Printf("Written %d screens\n", len(Screens))
 }
