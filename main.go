@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/xml"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -21,7 +21,7 @@ type Tile struct {
 }
 
 type Screen struct {
-	Tileset      int `xml:"-"`
+	Tileset      int
 	ScreenIndex  int
 	StringIndex  int
 	EffectFlags  int
@@ -326,7 +326,7 @@ func main() {
 	// Build proper level structure ready to marshal to XML/JSON
 	for _, v := range ScreenHeaders {
 		newScreen := Screen{
-			Tileset:      0,
+			Tileset:      int(v[0] & 0xe0 >> 4),
 			ScreenIndex:  int(v[1]),
 			StringIndex:  int(v[0] & 0x1f),
 			EffectFlags:  int(v[2] & 0xf0),
@@ -340,24 +340,33 @@ func main() {
 		Screens = append(Screens, newScreen)
 	}
 
+	type ScreenLayout struct {
+		Layout [12][8]Tile
+	}
+
 	type OutputFile struct {
-		Strings []string      `xml:"Strings>String"`
-		Screens []Screen      `xml:"ScreenHeaders>Header"`
-		Tiles   [][12][8]Tile `xml:"Screens>Data"`
+		Strings []string
+		Screens []Screen
+		Layouts []ScreenLayout
 	}
 
 	var Test OutputFile
 
 	Test.Strings = StringTable
 	Test.Screens = Screens
-	Test.Tiles = ScreenTiles
 
-	b, err := xml.Marshal(Test)
+	for _, v := range ScreenTiles {
+		var nsl ScreenLayout
+		nsl.Layout = v
+		Test.Layouts = append(Test.Layouts, nsl)
+	}
+
+	b, err := json.MarshalIndent(Test, "", "  ")
 
 	if err != nil {
 		panic(err)
 	}
 
-	os.WriteFile("C:/Dave/test.xml", b, 0666)
+	os.WriteFile("C:/Dave/test.json", b, 0666)
 	fmt.Printf("Written %d screens\n", len(Screens))
 }
