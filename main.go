@@ -134,7 +134,7 @@ loop:
 				bytesExpected = bytesExpected - len(b)
 				if bytesExpected == 0 {
 					screens++
-					ScreenHeaders = append(ScreenHeaders, [8]byte(thisScreen.Bytes()))
+					ScreenHeaders = append(ScreenHeaders, [8]byte((thisScreen.Bytes())))
 					thisScreen.Reset()
 					state = Searching
 				}
@@ -361,12 +361,13 @@ func main() {
 		Test.Layouts = append(Test.Layouts, nsl)
 	}
 
-	b, err := json.MarshalIndent(Test, "", "  ")
+	// b
+	_, err = json.MarshalIndent(Test, "", "  ")
 
 	if err != nil {
 		panic(err)
 	}
 
-	os.WriteFile("C:/Dave/test.json", b, 0666)
+	//os.WriteFile("C:/Dave/test.json", b, 0666)
 	fmt.Printf("Written %d screens\n", len(Screens))
 }

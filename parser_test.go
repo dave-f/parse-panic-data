@@ -111,3 +111,32 @@ func TestBytesWithOrStatements(t *testing.T) {
 		t.Errorf("Expected %v got %v", want, got)
 	}
 }
+
+func NewTests(t *testing.T) {
+	type TestCase struct {
+		Input string
+		ExpectedResult byte
+	}
+
+	var tests []TestCase
+
+	tests = append(tests,TestCase{Input:"&23 OR $4",ExpectedResult:39})
+	tests = append(tests,TestCase{Input:"&f",ExpectedResult:15})
+	tests = append(tests,TestCase{Input:"&ff",ExpectedResult:255})
+	tests = append(tests,TestCase{Input:"1 or 2 or 4",ExpectedResult:7})
+	tests = append(tests,TestCase{Input:"$2 or &4",ExpectedResult:6})
+	tests = append(tests,TestCase{Input:"23",ExpectedResult:23})
+	tests = append(tests,TestCase{Input:"$2 or &4",ExpectedResult:6})
+	tests = append(tests,TestCase{Input:"%1",ExpectedResult:1})
+	tests = append(tests,TestCase{Input:"%1 or &2 or $4 or 8",ExpectedResult:15})
+
+	for _,v := range tests {
+		b, err := parseByte(v.Input)
+		if err != nil {
+			t.Error(err)
+		}
+		if b != v.ExpectedResult {
+			t.Errorf("Expected %v got %v",v.ExpectedResult, b)
+		}
+	}
+}
