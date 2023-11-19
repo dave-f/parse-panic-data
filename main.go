@@ -24,7 +24,7 @@ type Tile struct {
 
 type Screen struct {
 	Tileset      int
-	ScreenIndex  int
+	LayoutIndex  int
 	StringIndex  int
 	EffectFlags  int
 	HasItem      bool
@@ -35,14 +35,14 @@ type Screen struct {
 	ExitWest     int
 }
 
-type ScreenLayout struct {
-	Layout [12][8]Tile
+type Layout struct {
+	Tiles [12][8]Tile
 }
 
 type OutputFile struct {
 	Strings []string
 	Screens []Screen
-	Layouts []ScreenLayout
+	Layouts []Layout
 }
 
 var Screens []Screen
@@ -259,6 +259,9 @@ func buildScreenData() error {
 										runLengthCount = 255
 									} else {
 										runLengthCount--
+										if runLengthCount == 0 {
+											return errors.New("unexpected run length count")
+										}
 									}
 									runLengthByte, err = rest.ReadByte() // get the byte to repeat
 									if err != nil {
@@ -345,7 +348,7 @@ func showScreen(s int) {
 	}
 
 	showScreen := func(i int) {
-		for _, i := range Test.Layouts[i].Layout {
+		for _, i := range Test.Layouts[i].Tiles {
 			for _, j := range i {
 				tileFlags := []byte{0x2e, 0x2e, 0x2e, 0x2e}
 				if j.Collidable {
@@ -421,7 +424,7 @@ func main() {
 	for _, v := range ScreenHeaders {
 		newScreen := Screen{
 			Tileset:      int(v[0] & 0xe0 >> 4),
-			ScreenIndex:  int(v[1]),
+			LayoutIndex:  int(v[1]),
 			StringIndex:  int(v[0] & 0x1f),
 			EffectFlags:  int(v[2] & 0xf0),
 			HasItem:      v[2]&0x4 == 0x4,
@@ -440,8 +443,8 @@ func main() {
 	Test.Screens = Screens
 
 	for _, v := range ScreenTiles {
-		var nsl ScreenLayout
-		nsl.Layout = v
+		var nsl Layout
+		nsl.Tiles = v
 		Test.Layouts = append(Test.Layouts, nsl)
 	}
 
