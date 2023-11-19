@@ -344,31 +344,47 @@ func showScreen(s int) {
 		panic(err)
 	}
 
-	if s < len(Test.Layouts) {
-
-		fmt.Println("Screen", s)
-
-		for _, i := range Test.Layouts[s].Layout {
+	showScreen := func(i int) {
+		for _, i := range Test.Layouts[i].Layout {
 			for _, j := range i {
-				tileFlags := " "
+				tileFlags := []byte{0x2e, 0x2e, 0x2e, 0x2e}
+				if j.Collidable {
+					tileFlags[0] = 'C' // Collide
+				}
 				if j.Climbable {
-					tileFlags = "*"
+					tileFlags[1] = 'L' // Ladder
 				}
 				if j.Hookable {
-					tileFlags = "^"
+					tileFlags[2] = 'H' // Hookable
 				}
-				fmt.Printf("%d%s", j.Index, tileFlags)
+				if j.FlippedX {
+					tileFlags[3] = 'X' // Flipped in X
+				}
+				if j.FlippedY {
+					tileFlags[4] = 'Y' // Flipped in Y
+				}
+				fmt.Printf("%02d%s ", j.Index, string(tileFlags))
 			}
 			fmt.Println()
+		}
+	}
+
+	if s == 255 {
+		for i, _ := range Test.Layouts {
+			fmt.Println("Screen", i)
+			showScreen(i)
+		}
+	} else {
+		if s < len(Test.Layouts) {
+			fmt.Println("Screen", s)
+			showScreen(s)
 		}
 	}
 }
 
 func main() {
 
-	var scr = flag.Int("n", -1, "Display screen n")
-
-	fmt.Println(os.Args)
+	var scr = flag.Int("n", -1, "Display screen n (255=display all)")
 
 	flag.Parse()
 
