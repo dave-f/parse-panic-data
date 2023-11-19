@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -31,6 +33,16 @@ type Screen struct {
 	ExitSouth    int
 	ExitEast     int
 	ExitWest     int
+}
+
+type ScreenLayout struct {
+	Layout [12][8]Tile
+}
+
+type OutputFile struct {
+	Strings []string
+	Screens []Screen
+	Layouts []ScreenLayout
 }
 
 var Screens []Screen
@@ -201,8 +213,6 @@ func buildScreenData() error {
 				if len(b) == 1 {
 					// Special case for screen 40
 					if screen40 && b[0] == 0x68 {
-						fmt.Println("Patching special byte")
-						unpackedScreen[rowCount-1][7] = 0x68
 						continue
 					} else if b[0] != 0 { // If there is only one byte this row, it must be 0 to indicate no data
 						return errors.New("unexpected byte")
@@ -229,12 +239,26 @@ func buildScreenData() error {
 							} else {
 								tb, err := rest.ReadByte()
 								if err != nil {
-									return err
+
+									// On screen 40, we check for an EOF.  This is because the data ends 1 byte early on the line,
+									// followed by a label before the final byte so the code can patch the byte easily.
+									if screen40 {
+										if errors.Is(io.EOF, err) {
+											fmt.Println("Patching special byte")
+											tb = 8 | 0x20 | 0x40
+										} else {
+											return err
+										}
+									} else {
+										return err
+									}
 								}
 								if tb&0xf0 == 0xf0 {
 									runLengthCount = int(tb & 0xf)
 									if runLengthCount == 0 { // 0xf0 means rest of row
 										runLengthCount = 255
+									} else {
+										runLengthCount--
 									}
 									runLengthByte, err = rest.ReadByte() // get the byte to repeat
 									if err != nil {
@@ -297,7 +321,61 @@ func buildScreenTiles() error {
 	return nil
 }
 
+func showScreen(s int) {
+
+	f, err := os.Open("C:/Dave/test.json")
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer f.Close()
+
+	b, err := io.ReadAll(f)
+
+	if err != nil {
+		panic(err)
+	}
+
+	var Test OutputFile
+	err = json.Unmarshal(b, &Test)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if s < len(Test.Layouts) {
+
+		fmt.Println("Screen", s)
+
+		for _, i := range Test.Layouts[s].Layout {
+			for _, j := range i {
+				tileFlags := " "
+				if j.Climbable {
+					tileFlags = "*"
+				}
+				if j.Hookable {
+					tileFlags = "^"
+				}
+				fmt.Printf("%d%s", j.Index, tileFlags)
+			}
+			fmt.Println()
+		}
+	}
+}
+
 func main() {
+
+	var scr = flag.Int("n", -1, "Display screen n")
+
+	fmt.Println(os.Args)
+
+	flag.Parse()
+
+	if *scr != -1 {
+		showScreen(*scr)
+		return
+	}
 
 	err := buildStringTable()
 
@@ -340,16 +418,6 @@ func main() {
 		Screens = append(Screens, newScreen)
 	}
 
-	type ScreenLayout struct {
-		Layout [12][8]Tile
-	}
-
-	type OutputFile struct {
-		Strings []string
-		Screens []Screen
-		Layouts []ScreenLayout
-	}
-
 	var Test OutputFile
 
 	Test.Strings = StringTable
@@ -361,13 +429,12 @@ func main() {
 		Test.Layouts = append(Test.Layouts, nsl)
 	}
 
-	// b
-	_, err = json.MarshalIndent(Test, "", "  ")
+	b, err := json.MarshalIndent(Test, "", "  ")
 
 	if err != nil {
 		panic(err)
 	}
 
-	//os.WriteFile("C:/Dave/test.json", b, 0666)
+	os.WriteFile("C:/Dave/test.json", b, 0666)
 	fmt.Printf("Written %d screens\n", len(Screens))
 }
