@@ -454,6 +454,11 @@ func main() {
 		panic(err)
 	}
 
-	os.WriteFile("C:/Dave/test.json", b, 0666)
-	fmt.Printf("Written %d screens\n", len(Screens))
+	err = os.WriteFile("C:/Dave/test.json", b, 0666)
+
+	if err != nil {
+		fmt.Println("Error writing data:",err)
+	} else {
+		fmt.Printf("Written %d screens\n", len(Screens))
+	}
 }
