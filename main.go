@@ -326,7 +326,7 @@ func buildScreenTiles() error {
 
 func showScreen(s int) {
 
-	f, err := os.Open("C:/Dave/test.json")
+	f, err := os.Open("output.json")
 
 	if err != nil {
 		panic(err)
@@ -454,7 +454,7 @@ func main() {
 		panic(err)
 	}
 
-	err = os.WriteFile("C:/Dave/test.json", b, 0666)
+	err = os.WriteFile("output.json", b, 0666)
 
 	if err != nil {
 		fmt.Println("Error writing data:",err)
