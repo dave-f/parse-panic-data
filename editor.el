@@ -1,5 +1,7 @@
 ;
 
+(setq screens nil) ;
+
 (setq tiles nil) ; contains slices for the image
 (setq dave-im nil) ; contains the image
 
@@ -12,10 +14,17 @@
 (defun draw-level()
   (interactive)
   (when (eq dave-im nil)
-      (setq dave-im (create-image "/home/dave/Dev/panic/RES/TILE.PNG"))
+      (setq dave-im (create-image (expand-file-name "../panic/RES/TILE.PNG") nil nil :scale 1))
       (message "Image loaded: %s" (image-size dave-im t)))
   (when (eq tiles nil)
     (create-tiles))
-  (cl-loop for i from 0 to 7 do
-           (insert-image dave-im nil nil (nth i tiles))))
+  (cl-loop for i from 0 to 12 do
+           (cl-loop for j from 0 to 7 do
+                    (insert-image dave-im nil nil (nth j tiles)))
+           (newline)))
 
+
+
+; TODO
+; (setq level-data (json-read-file (expand-file-name "./output.json")))
+; (length (cdr (nth 1 level-data))) ; 50 screens
