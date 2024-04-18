@@ -14,6 +14,7 @@ import (
 )
 
 type Tile struct {
+	Empty      bool
 	Index      int
 	FlippedX   bool
 	FlippedY   bool
@@ -217,7 +218,7 @@ func buildScreenData() error {
 					} else if b[0] != 0 { // If there is only one byte this row, it must be 0 to indicate no data
 						return errors.New("unexpected byte")
 					} else {
-						unpackedScreen = append(unpackedScreen, [8]byte{})
+						unpackedScreen = append(unpackedScreen, [8]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
 					}
 				} else {
 					// Do the decode
@@ -275,6 +276,7 @@ func buildScreenData() error {
 								}
 							}
 						} else {
+							unpackedRow[idx] = 0xff
 							idx++
 						}
 						controlByte = controlByte << 1
@@ -308,6 +310,7 @@ func buildScreenTiles() error {
 			for j := 0; j < 8; j++ {
 				thisByte := v[i][j]
 				newTile := Tile{
+					Empty:      thisByte == 0xff,
 					Index:      int(thisByte & 0xf),
 					FlippedX:   thisByte&0x20 == 0x20,
 					FlippedY:   false,
@@ -366,7 +369,11 @@ func showScreen(s int) {
 				if j.FlippedY {
 					tileFlags[4] = 'Y' // Flipped in Y
 				}
-				fmt.Printf("%02d%s ", j.Index, string(tileFlags))
+				if j.Empty {
+					fmt.Printf("...... ")
+				} else {
+					fmt.Printf("%02d%s ", j.Index, string(tileFlags))
+				}
 			}
 			fmt.Println()
 		}
@@ -374,13 +381,13 @@ func showScreen(s int) {
 
 	if s == 255 {
 		for i, _ := range Test.Layouts {
-			fmt.Println("Screen", i)
 			showScreen(i)
+			fmt.Println("Screen", i)
 		}
 	} else {
 		if s < len(Test.Layouts) {
-			fmt.Println("Screen", s)
 			showScreen(s)
+			fmt.Println("Screen", s)
 		}
 	}
 }
@@ -457,7 +464,7 @@ func main() {
 	err = os.WriteFile("output.json", b, 0666)
 
 	if err != nil {
-		fmt.Println("Error writing data:",err)
+		fmt.Println("Error writing data:", err)
 	} else {
 		fmt.Printf("Written %d screens\n", len(Screens))
 	}
