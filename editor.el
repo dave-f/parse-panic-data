@@ -4,14 +4,14 @@
 (defvar panic-current-screen 1 "Current screen we are editing")
 (defvar panic-tiles nil "A list of tile image slices")
 (defvar panic-tile-image nil "Image containing the graphics")
-(defconst panic-scale 2 "Scale of the tiles")
+(defconst panic-scale 1 "Scale of the tiles")
 (defconst panic-exported-cell-regexp "\\([0-9][0-9]\\)...." "Regexp to match the exported cell data from `parse-panic-data'")
 (defconst panic-row-count 12 "Count of rows in a screen")
 (defconst panic-col-count 8 "Count of columns in a screen")
 
 (if (or (string-equal system-type "ms-dos") (string-equal system-type "windows-nt"))
     (defconst panic-parse-tool "parse-panic-data.exe")
-  (defconst panic-parse-tool "parse-panic-data"))
+  (defconst panic-parse-tool "./parse-panic-data"))
 
 ;; We no longer have tilesets so just convert the tile index
 (defun tileset-index-to-tile-offset(index)
@@ -19,10 +19,12 @@
       0
     -1))
 
-(defun panic-create-tiles()
+(defun panic-create-tiles() ; create tileset 1
   (setq panic-tiles nil)
-  (cl-loop for i from 0 to 7 do
+  (cl-loop for i from 0 below 8 do
            (push `(,(* i (* 16 panic-scale)) 0 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles))
+  (cl-loop for i from 0 below 4 do
+           (push `(,(* i (* 16 panic-scale)) 32 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles))
   (setq panic-tiles (reverse panic-tiles)))
 
 (defun panic-draw-screen(arg)
@@ -74,7 +76,7 @@
   (panic-load-data)
   (switch-to-buffer (get-buffer-create "*Panic Editor*"))
   (erase-buffer)
-  (panic-draw-screen 5)
+  (panic-draw-screen 6)
   (message "Move around with cursor keys, RET to edit cell, s to save, q to quit, j jump to screen"))
 
 ;; Load a screen from the original assembly data
