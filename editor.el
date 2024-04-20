@@ -1,7 +1,7 @@
 ;; Mountain panic level editor
 
 (defvar panic-screens nil "List of screens")
-(defvar panic-current-screen 1 "Current screen we are editing")
+(defvar panic-current-screen 0 "Current screen we are editing")
 (defvar panic-tiles nil "A list of tile image slices")
 (defvar panic-tile-image nil "Image containing the graphics")
 (defconst panic-scale 1 "Scale of the tiles")
@@ -12,6 +12,15 @@
 (if (or (string-equal system-type "ms-dos") (string-equal system-type "windows-nt"))
     (defconst panic-parse-tool "parse-panic-data.exe")
   (defconst panic-parse-tool "./parse-panic-data"))
+
+(defvar panic-editor-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "n") 'panic-next-screen)
+    (define-key map (kbd "p") 'panic-prev-screen)
+    (define-key map (kbd "q") '(lambda() (interactive) (kill-buffer "*Panic Editor*")))
+    map))
+
+(define-derived-mode panic-editor-mode fundamental-mode "Panic Edit")
 
 ;; We no longer have tilesets so just convert the tile index
 (defun tileset-index-to-tile-offset(index)
@@ -33,6 +42,7 @@
     (message "Image loaded: %s" (image-size panic-tile-image t)))
   (when (eq panic-tiles nil)
     (panic-create-tiles))
+  (erase-buffer)
   (let ((scr (panic-load-screen arg))
         (flg (panic-create-flags)))
     (cl-loop for i from 0 below (length scr) do
@@ -63,6 +73,20 @@
 (defun panic-edit-string-table()
   "Edit the string table")
 
+(defun panic-next-screen()
+  "Move to the next screen"
+  (interactive)
+  (when (< panic-current-screen 50)
+    (setq panic-current-screen (1+ panic-current-screen))
+    (panic-draw-screen panic-current-screen)))
+
+(defun panic-prev-screen()
+  "Move to the previous screen"
+  (interactive)
+  (when (> panic-current-screen 0)
+    (setq panic-current-screen (1- panic-current-screen))
+    (panic-draw-screen panic-current-screen)))
+
 ;; Reset the variables for debugging
 (defun panic-reset()
   (setq panic-tiles nil)
@@ -75,8 +99,9 @@
   (panic-reset)
   (panic-load-data)
   (switch-to-buffer (get-buffer-create "*Panic Editor*"))
-  (erase-buffer)
-  (panic-draw-screen 6)
+  (setq panic-current-screen 0)
+  (panic-draw-screen panic-current-screen)
+  (panic-editor-mode)
   (message "Move around with cursor keys, RET to edit cell, s to save, q to quit, j jump to screen"))
 
 ;; Load a screen from the original assembly data
