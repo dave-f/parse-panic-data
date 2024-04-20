@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"strconv"
 )
 
 type Tile struct {
@@ -51,9 +52,11 @@ var StringTable []string
 var ScreenHeaders [][8]byte
 var ScreenData [][12][8]byte
 var ScreenTiles [][12][8]Tile
+var ScreenTable []int
 
 var StringRegexp = regexp.MustCompile(`^\.s[0-9]+:`)
 var ScreenRegexp = regexp.MustCompile(`^\.screen[0-9]+Data`)
+var LayoutRegexp = regexp.MustCompile(`^EQUW screen([0-9]+)Data.*`)
 
 func buildStringTable() error {
 	f, err := os.Open("../panic/memory.asm")
@@ -156,6 +159,28 @@ loop:
 		}
 	}
 
+	if scanner.Err() != nil {
+		return scanner.Err()
+	}
+
+	for scanner.Scan() {
+		l := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(l, "EQUW") {
+			idx := 0
+			if !strings.HasPrefix(l,"EQUW 0") && !strings.HasPrefix(l,"EQUW congratulationsScreen") {
+				m := LayoutRegexp.FindStringSubmatch(l)
+				if m == nil {
+					return errors.New("unexpected data in screenTable")
+				} else {
+					idx, _ = strconv.Atoi(m[1])
+				}
+			}
+			ScreenTable = append(ScreenTable, idx)
+		} else {
+			break
+        }
+	}
+
 	return scanner.Err()
 }
 
@@ -197,7 +222,7 @@ func buildScreenData() error {
 				} else {
 					screen40 = false
 				}
-				fmt.Println("Decoding", scanner.Text())
+				//fmt.Println("Decoding", scanner.Text())
 				state = DecodingRow
 			}
 		case FalseBlock:
@@ -245,7 +270,7 @@ func buildScreenData() error {
 									// followed by a label before the final byte so the code can patch the byte easily.
 									if screen40 {
 										if errors.Is(io.EOF, err) {
-											fmt.Println("Patching special byte")
+											//fmt.Println("Patching special byte")
 											tb = 8 | 0x20 | 0x40
 										} else {
 											return err
@@ -379,16 +404,11 @@ func showScreen(s int) {
 		}
 	}
 
-	if s == 255 {
-		for i, _ := range Test.Layouts {
-			showScreen(i)
-			fmt.Println("Screen", i)
-		}
-	} else {
-		if s < len(Test.Layouts) {
-			showScreen(s)
-			fmt.Println("Screen", s)
-		}
+	if s < len(Screens) {
+		showScreen(Screens[s].LayoutIndex)
+		fmt.Println("Screen :", s)
+		fmt.Println("Layout :", Screens[s].LayoutIndex)
+		fmt.Println("Tileset:", Screens[s].Tileset)
 	}
 }
 
@@ -397,11 +417,6 @@ func main() {
 	var scr = flag.Int("n", -1, "Display screen n (255=display all)")
 
 	flag.Parse()
-
-	if *scr != -1 {
-		showScreen(*scr)
-		return
-	}
 
 	err := buildStringTable()
 
@@ -430,8 +445,8 @@ func main() {
 	// Build proper level structure ready to marshal to XML/JSON
 	for _, v := range ScreenHeaders {
 		newScreen := Screen{
-			Tileset:      int(v[0] & 0xe0 >> 4),
-			LayoutIndex:  int(v[1]),
+			Tileset:      int(v[0] & 0xf0 >> 4),
+			LayoutIndex:  int(ScreenTable[v[1]]-1),
 			StringIndex:  int(v[0] & 0x1f),
 			EffectFlags:  int(v[2] & 0xf0),
 			HasItem:      v[2]&0x4 == 0x4,
@@ -442,6 +457,11 @@ func main() {
 			ExitWest:     int(v[6]),
 		}
 		Screens = append(Screens, newScreen)
+	}
+
+	if *scr != -1 {
+		showScreen(*scr)
+		return
 	}
 
 	var Test OutputFile
