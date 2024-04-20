@@ -2,7 +2,8 @@
 
 (defvar panic-screens nil "List of screens")
 (defvar panic-current-screen 0 "Current screen we are editing")
-(defvar panic-tiles nil "A list of tile image slices")
+(defvar panic-tiles1 nil "A list of tile image slices")
+(defvar panic-tiles2 nil "A list of tile image slices")
 (defvar panic-tile-image nil "Image containing the graphics")
 (defconst panic-scale 1 "Scale of the tiles")
 (defconst panic-exported-cell-regexp "\\([0-9][0-9]\\)...." "Regexp to match the exported cell data from `parse-panic-data'")
@@ -28,27 +29,40 @@
       0
     -1))
 
-(defun panic-create-tiles() ; create tileset 1
-  (setq panic-tiles nil)
+(defun panic-create-tiles1()
+  (setq panic-tiles1 nil)
   (cl-loop for i from 0 below 8 do
-           (push `(,(* i (* 16 panic-scale)) 0 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles))
+           (push `(,(* i (* 16 panic-scale)) 0 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles1))
   (cl-loop for i from 0 below 4 do
-           (push `(,(* i (* 16 panic-scale)) 32 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles))
-  (setq panic-tiles (reverse panic-tiles)))
+           (push `(,(* i (* 16 panic-scale)) 32 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles1))
+  (setq panic-tiles1 (reverse panic-tiles1)))
+
+(defun panic-create-tiles2()
+  (setq panic-tiles2 nil)
+  (cl-loop for i from 0 below 8 do
+           (push `(,(* i (* 16 panic-scale)) 16 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles2))
+  (cl-loop for i from 0 below 4 do
+           (push `(,(* i (* 16 panic-scale)) 32 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles2))
+  (setq panic-tiles2 (reverse panic-tiles2)))
 
 (defun panic-draw-screen(arg)
   (when (eq panic-tile-image nil)
     (setq panic-tile-image (create-image (expand-file-name "../panic/RES/TILE.PNG") 'png nil :scale panic-scale))
     (message "Image loaded: %s" (image-size panic-tile-image t)))
-  (when (eq panic-tiles nil)
-    (panic-create-tiles))
+  (when (eq panic-tiles1 nil)
+    (panic-create-tiles1))
+  (when (eq panic-tiles2 nil)
+    (panic-create-tiles2))
   (erase-buffer)
   (let ((scr (panic-load-screen arg))
-        (flg (panic-create-flags)))
+        (flg (panic-create-flags))
+        (tls 2))
     (cl-loop for i from 0 below (length scr) do
-             (insert (format "%02d " i))
+             ;(insert (format "%02d " i))
              (cl-loop for j in (nth i scr) do
-                      (insert-image panic-tile-image nil nil (nth j panic-tiles)))
+                      (if (= tls 1)
+                          (insert-image panic-tile-image nil nil (nth j panic-tiles1))
+                        (insert-image panic-tile-image nil nil (nth j panic-tiles2))))
              (newline))))
 
 (defun panic-create-screen()
@@ -76,7 +90,7 @@
 (defun panic-next-screen()
   "Move to the next screen"
   (interactive)
-  (when (< panic-current-screen 50)
+  (when (< panic-current-screen 46)
     (setq panic-current-screen (1+ panic-current-screen))
     (panic-draw-screen panic-current-screen)))
 
@@ -89,7 +103,8 @@
 
 ;; Reset the variables for debugging
 (defun panic-reset()
-  (setq panic-tiles nil)
+  (setq panic-tiles1 nil)
+  (setq panic-tiles2 nil)
   (setq panic-tile-image nil))
 
 ;; Main entry
