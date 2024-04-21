@@ -56,11 +56,11 @@
   (erase-buffer)
   (let ((scr (panic-load-screen arg))
         (flg (panic-create-flags))
-        (tls 2))
+        (tls (panic-get-tileset)))
     (cl-loop for i from 0 below (length scr) do
              ;(insert (format "%02d " i))
              (cl-loop for j in (nth i scr) do
-                      (if (= tls 1)
+                      (if (= tls 0)
                           (insert-image panic-tile-image nil nil (nth j panic-tiles1))
                         (insert-image panic-tile-image nil nil (nth j panic-tiles2))))
              (newline))))
@@ -70,6 +70,11 @@
 
 (defun panic-create-flags()
   (make-list panic-row-count '(0 0 0 0 0 0 0 0)))
+
+(defun panic-get-tileset()
+  (with-current-buffer "*panic parse output*"
+    (goto-char (point-min))
+    (string-to-number (buffer-substring (search-forward "Tileset: " nil t 1) (line-end-position)))))
 
 ;; Edit a cell's index, will be bound to RET
 (defun panic-edit-cell()
