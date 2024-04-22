@@ -18,7 +18,7 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "n") 'panic-next-screen)
     (define-key map (kbd "p") 'panic-prev-screen)
-    (define-key map (kbd "q") '(lambda() (interactive) (kill-buffer "*Panic Editor*")))
+    (define-key map (kbd "q") #'(lambda() (interactive) (kill-buffer "*Panic Editor*")))
     map))
 
 (define-derived-mode panic-editor-mode fundamental-mode "Panic Edit")
