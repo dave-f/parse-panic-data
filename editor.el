@@ -5,6 +5,7 @@
 (defvar panic-tiles1 nil "A list of tile image slices")
 (defvar panic-tiles2 nil "A list of tile image slices")
 (defvar panic-tile-image nil "Image containing the graphics")
+(defvar panic-blank-tile nil "A blank tile")
 (defconst panic-scale 1 "Scale of the tiles")
 (defconst panic-exported-cell-regexp "\\([0-9][0-9]\\)...." "Regexp to match the exported cell data from `parse-panic-data'")
 (defconst panic-row-count 12 "Count of rows in a screen")
@@ -45,6 +46,9 @@
            (push `(,(* i (* 16 panic-scale)) 32 ,(* 16 panic-scale) ,(* 16 panic-scale)) panic-tiles2))
   (setq panic-tiles2 (reverse panic-tiles2)))
 
+(defun panic-create-blank-tile()
+  (setq panic-blank-tile `(,(- 128 16) ,(- 208 16) 16 16)))
+
 (defun panic-draw-screen(arg)
   (when (eq panic-tile-image nil)
     (setq panic-tile-image (create-image (expand-file-name "../panic/RES/TILE.PNG") 'png nil :scale panic-scale))
@@ -53,16 +57,19 @@
     (panic-create-tiles1))
   (when (eq panic-tiles2 nil)
     (panic-create-tiles2))
+  (when (eq panic-blank-tile nil)
+    (panic-create-blank-tile))
   (erase-buffer)
   (let ((scr (panic-load-screen arg))
         (flg (panic-create-flags))
         (tls (panic-get-tileset)))
     (cl-loop for i from 0 below (length scr) do
-             ;(insert (format "%02d " i))
              (cl-loop for j in (nth i scr) do
-                      (if (= tls 0)
-                          (insert-image panic-tile-image nil nil (nth j panic-tiles1))
-                        (insert-image panic-tile-image nil nil (nth j panic-tiles2))))
+                      (if (= j -1)
+                          (insert-image panic-tile-image nil nil panic-blank-tile)
+                        (if (= tls 0)
+                            (insert-image panic-tile-image nil nil (nth j panic-tiles1))
+                          (insert-image panic-tile-image nil nil (nth j panic-tiles2)))))
              (newline))))
 
 (defun panic-create-screen()
@@ -110,6 +117,7 @@
 (defun panic-reset()
   (setq panic-tiles1 nil)
   (setq panic-tiles2 nil)
+  (setq panic-blank-tile nil)
   (setq panic-tile-image nil))
 
 ;; Main entry
@@ -138,11 +146,11 @@
                          (new-row nil))
                      (cl-loop for i in cells do
                               (if (string= i "......")
-                                  (push 7 new-row)
+                                  (push -1 new-row)
                                 (progn
                                   (if (string-match panic-exported-cell-regexp i)
                                       (push (string-to-number (substring i (match-beginning 1) (match-end 1))) new-row) 
-                                    (push 7 new-row)))))
+                                    (push -1 new-row)))))
                      (setq new-row (reverse new-row))
                      (push new-row new-screen)
                      (forward-line)))
