@@ -63,9 +63,10 @@
   (when (eq panic-blank-tile nil)
     (panic-create-blank-tile))
   (erase-buffer)
-  (let ((scr (panic-load-screen arg))
-        (flg (panic-create-flags))
-        (tls (panic-get-tileset)))
+  (let* ((scrflgs (panic-load-screen arg))
+         (scr (car scrflgs))
+         (flg (cdr scrflgs))
+         (tls (panic-get-tileset)))
     (cl-loop for i from 0 below (length scr) do
              (cl-loop for j in (nth i scr) do
                       (if (= j -1)
@@ -74,12 +75,6 @@
                             (insert-image panic-tile-image nil nil (nth j panic-tiles1))
                           (insert-image panic-tile-image nil nil (nth j panic-tiles2)))))
              (newline))))
-
-(defun panic-create-screen()
-  (make-list panic-row-count '(0 0 0 0 0 0 0 0)))
-
-(defun panic-create-flags()
-  (make-list panic-row-count '(0 0 0 0 0 0 0 0)))
 
 (defun panic-get-tileset()
   (with-current-buffer "*panic parse output*"
@@ -144,21 +139,27 @@
   (with-current-buffer "*panic parse output*"
     (goto-char (point-min))
     (if (> (count-lines (point-min) (point-max)) panic-row-count)
-        (let (new-screen)
+        (let (new-screen new-flags)
           (cl-loop for i from 0 below panic-row-count do
                    (let ((cells (string-split (buffer-substring (line-beginning-position) (line-end-position))))
-                         (new-row nil))
+                         (new-row nil)
+                         (new-flags-row nil))
                      (cl-loop for i in cells do
                               (if (string= i "......")
-                                  (push -1 new-row)
-                                (progn
-                                  (if (string-match panic-exported-cell-regexp i)
-                                      (push (string-to-number (substring i (match-beginning 1) (match-end 1))) new-row) 
-                                    (push -1 new-row)))))
+                                  (progn
+                                    (push -1 new-row)
+                                    (push 0 new-flags-row))
+                                (if (string-match panic-exported-cell-regexp i)
+                                    (progn
+                                      (push (string-to-number (substring i (match-beginning 1) (match-end 1))) new-row)
+                                      (push 1 new-flags-row))
+                                  (push -1 new-row))))
                      (setq new-row (reverse new-row))
+                     (setq new-flags-row (reverse new-flags-row))
                      (push new-row new-screen)
+                     (push new-flags-row new-flags)
                      (forward-line)))
-          (reverse new-screen))
+          (list (reverse new-screen) (reverse new-flags)))
       (message "Not enough lines"))))
 
 ;; Load data
