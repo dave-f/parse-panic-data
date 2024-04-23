@@ -27,7 +27,7 @@
 
 (define-derived-mode panic-editor-mode fundamental-mode "Panic Edit")
 
-;; We no longer have tilesets so just convert the tile index
+;; TODO check this will be needed
 (defun tileset-index-to-tile-offset(index)
   (if (< index 8)
       0
@@ -54,7 +54,8 @@
 
 (defun panic-draw-screen(arg)
   (when (eq panic-tile-image nil)
-    (setq panic-tile-image (create-image (expand-file-name "../panic/RES/TILE.PNG") 'png nil :scale panic-scale))
+    (setq panic-tile-image (create-image (expand-file-name "../panic/RES/TILE.PNG") 'png nil :scale panic-scale)))
+  (when (eq panic-tile-image-flipped nil)
     (setq panic-tile-image-flipped (create-image (expand-file-name "../panic/RES/TILE.PNG") 'png nil :scale panic-scale :flip t)))
   (when (eq panic-tiles1 nil)
     (panic-create-tiles1))
@@ -63,17 +64,19 @@
   (when (eq panic-blank-tile nil)
     (panic-create-blank-tile))
   (erase-buffer)
-  (let* ((scrflgs (panic-load-screen arg))
-         (scr (car scrflgs))
-         (flg (cdr scrflgs))
-         (tls (panic-get-tileset)))
+  (let ((scr (panic-load-screen arg))
+        (tls (panic-get-tileset)))
     (cl-loop for i from 0 below (length scr) do
              (cl-loop for j in (nth i scr) do
-                      (if (= j -1)
-                          (insert-image panic-tile-image nil nil panic-blank-tile)
-                        (if (= tls 0)
-                            (insert-image panic-tile-image nil nil (nth j panic-tiles1))
-                          (insert-image panic-tile-image nil nil (nth j panic-tiles2)))))
+                      (let ((idx (car j))
+                            (flg (cadr j)))
+                        (if (= idx -1)
+                            (insert-image panic-tile-image nil nil panic-blank-tile)
+                          (if (= tls 0)
+                              (if (string-match-p "X" flg) ; Check flipped flag
+                                  (insert-image panic-tile-image nil nil (nth idx panic-tiles1))
+                                (insert-image panic-tile-image nil nil (nth idx panic-tiles1)))
+                            (insert-image panic-tile-image nil nil (nth idx panic-tiles2))))))
              (newline))))
 
 (defun panic-get-tileset()
@@ -81,19 +84,16 @@
     (goto-char (point-min))
     (string-to-number (buffer-substring (search-forward "Tileset: " nil t 1) (line-end-position)))))
 
-;; Edit a cell's index, will be bound to RET
 (defun panic-edit-cell()
   "Edit a cell's index"
   (interactive)
   (read-number "Index: "))
 
-;; Edit a cell's flags
 (defun panic-toggle-cell-flag()
   "Edit a cell's flags"
   (interactive)
   (completing-read "Toggle flag: " '("Hookable" "Ladder" "Collidable" "Flipped")))
 
-;; Edit the string table
 (defun panic-edit-string-table()
   "Edit the string table")
 
@@ -111,7 +111,6 @@
     (setq panic-current-screen (1- panic-current-screen))
     (panic-draw-screen panic-current-screen)))
 
-;; Reset the variables for debugging
 (defun panic-reset()
   (setq panic-tiles1 nil)
   (setq panic-tiles2 nil)
@@ -119,7 +118,6 @@
   (setq panic-tile-image nil)
   (setq panic-tile-image-flipped nil))
 
-;; Main entry
 (defun panic-editor()
   "Start editing data for Mountain Panic 2"
   (interactive)
@@ -131,42 +129,32 @@
   (panic-editor-mode)
   (message "Move around with cursor keys, RET to edit cell, s to save, q to quit, j jump to screen"))
 
-;; Load a screen from the original assembly data
 (defun panic-load-screen(arg)
-  "Load a screen from the original assembler data"
+  "Load a screen from the original assembler data."
   (interactive "nLoad screen: ")
   (shell-command (concat panic-parse-tool " -n=" (number-to-string arg)) "*panic parse output*")
   (with-current-buffer "*panic parse output*"
     (goto-char (point-min))
     (if (> (count-lines (point-min) (point-max)) panic-row-count)
-        (let (new-screen new-flags)
+        (let (new-screen)
           (cl-loop for i from 0 below panic-row-count do
                    (let ((cells (string-split (buffer-substring (line-beginning-position) (line-end-position))))
-                         (new-row nil)
-                         (new-flags-row nil))
+                         (new-row nil))
                      (cl-loop for i in cells do
                               (if (string= i "......")
-                                  (progn
-                                    (push -1 new-row)
-                                    (push 0 new-flags-row))
+                                  (push (list -1 "....") new-row)
                                 (if (string-match panic-exported-cell-regexp i)
-                                    (progn
-                                      (push (string-to-number (substring i (match-beginning 1) (match-end 1))) new-row)
-                                      (push 1 new-flags-row))
-                                  (push -1 new-row))))
+                                    (push (list (string-to-number (substring i (match-beginning 1) (match-end 1))) (substring i (match-end 1) (length i))) new-row)
+                                  (push (list -1 "....") new-row))))
                      (setq new-row (reverse new-row))
-                     (setq new-flags-row (reverse new-flags-row))
-                     (push new-row new-screen)
-                     (push new-flags-row new-flags)
-                     (forward-line)))
-          (list (reverse new-screen) (reverse new-flags)))
+                     (push new-row new-screen))
+                   (forward-line))
+          (reverse new-screen))
       (message "Not enough lines"))))
 
-;; Load data
 (defun panic-load-data()
   "Loads level data")
 
-;; Save data
 (defun panic-save-data()
   "Saves level data")
 
