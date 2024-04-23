@@ -5,6 +5,7 @@
 (defvar panic-tiles1 nil "A list of tile image slices")
 (defvar panic-tiles2 nil "A list of tile image slices")
 (defvar panic-tile-image nil "Image containing the graphics")
+(defvar panic-tile-image-flipped nil "Image containing the graphics (flipped)")
 (defvar panic-blank-tile nil "A blank tile")
 (defconst panic-scale 1 "Scale of the tiles")
 (defconst panic-exported-cell-regexp "\\([0-9][0-9]\\)...." "Regexp to match the exported cell data from `parse-panic-data'")
@@ -19,6 +20,8 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "n") 'panic-next-screen)
     (define-key map (kbd "p") 'panic-prev-screen)
+    (define-key map (kbd "SPC") 'panic-toggle-cell-flag)
+    (define-key map (kbd "RET") 'panic-edit-cell)
     (define-key map (kbd "q") #'(lambda() (interactive) (kill-buffer "*Panic Editor*")))
     map))
 
@@ -52,7 +55,7 @@
 (defun panic-draw-screen(arg)
   (when (eq panic-tile-image nil)
     (setq panic-tile-image (create-image (expand-file-name "../panic/RES/TILE.PNG") 'png nil :scale panic-scale))
-    (message "Image loaded: %s" (image-size panic-tile-image t)))
+    (setq panic-tile-image-flipped (create-image (expand-file-name "../panic/RES/TILE.PNG") 'png nil :scale panic-scale :flip t)))
   (when (eq panic-tiles1 nil)
     (panic-create-tiles1))
   (when (eq panic-tiles2 nil)
@@ -85,15 +88,15 @@
 
 ;; Edit a cell's index, will be bound to RET
 (defun panic-edit-cell()
-  "Edit an index"
-  ;(interactive)
-  )
+  "Edit a cell's index"
+  (interactive)
+  (read-number "Index: "))
 
 ;; Edit a cell's flags
-(defun panic-edit-cell-flags()
-  "Edit a cell flags"
-  ;(interactive)
-  (completing-read "Flags:" '("Hookable" "Climbable" "Collidable" "Flipped")))
+(defun panic-toggle-cell-flag()
+  "Edit a cell's flags"
+  (interactive)
+  (completing-read "Toggle flag: " '("Hookable" "Ladder" "Collidable" "Flipped")))
 
 ;; Edit the string table
 (defun panic-edit-string-table()
@@ -118,7 +121,8 @@
   (setq panic-tiles1 nil)
   (setq panic-tiles2 nil)
   (setq panic-blank-tile nil)
-  (setq panic-tile-image nil))
+  (setq panic-tile-image nil)
+  (setq panic-tile-image-flipped nil))
 
 ;; Main entry
 (defun panic-editor()
