@@ -185,7 +185,7 @@ loop:
 }
 
 // Ignore items and aliens for now, maybe if the header flags suggest these we can decode them
-func buildScreenData() error {
+func buildScreenData(org bool) error {
 
 	const (
 		Undefined = iota
@@ -403,6 +403,7 @@ func showScreen(s int) {
 	if s < len(Screens) {
 		showScreen(Screens[s].LayoutIndex)
 		fmt.Println("Screen   :", s)
+		fmt.Println("String   :", Screens[s].StringIndex, "(", StringTable[Screens[s].StringIndex], ")")
 		fmt.Println("Layout   :", Screens[s].LayoutIndex)
 		fmt.Println("Tileset  :", Screens[s].Tileset)
 		fmt.Println("Has Item :", Screens[s].HasItem)
@@ -413,6 +414,7 @@ func showScreen(s int) {
 func main() {
 
 	var scr = flag.Int("n", -1, "Display screen n (255=display all)")
+	var org = flag.Bool("org", true, "Expect original Mountain Panic data")
 
 	flag.Parse()
 
@@ -428,7 +430,7 @@ func main() {
 		panic(err)
 	}
 
-	err = buildScreenData()
+	err = buildScreenData(*org)
 
 	if err != nil {
 		panic(err)
