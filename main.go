@@ -42,6 +42,7 @@ type Layout struct {
 }
 
 type OutputFile struct {
+	Version int
 	Strings []string
 	Screens []Screen
 	Layouts []Layout
@@ -414,7 +415,7 @@ func showScreen(s int) {
 func main() {
 
 	var scr = flag.Int("n", -1, "Display screen n (255=display all)")
-	var org = flag.Bool("org", true, "Expect original Mountain Panic data")
+	var org = flag.Bool("org", true, "Use original Mountain Panic format")
 
 	flag.Parse()
 
@@ -467,6 +468,11 @@ func main() {
 
 	var Test OutputFile
 
+	if *org {
+		Test.Version = 1
+	} else {
+		Test.Version = 2
+	}
 	Test.Strings = StringTable
 	Test.Screens = Screens
 
