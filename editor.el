@@ -34,10 +34,6 @@
       0
     -1))
 
-(defun panic-total-screens()
-  "Return the total number of screens"
-  46) ; 46
-
 (defun panic-write-screen-header(scr)
   "Write a screen's header data into the export buffer"
   (insert "    EQUB &00\n")
@@ -114,7 +110,12 @@
 (defun panic-get-tileset()
   (with-current-buffer "*panic parse output*"
     (goto-char (point-min))
-    (string-to-number (buffer-substring (search-forward "Tileset  : " nil t 1) (line-end-position)))))
+    (string-to-number (buffer-substring (search-forward-regexp "Tileset *: *" nil t 1) (line-end-position)))))
+
+(defun panic-total-screens()
+  (with-current-buffer "*panic parse output*"
+    (goto-char (point-min))
+    (string-to-number (buffer-substring (search-forward-regexp "Screen *: *[0-9]+/") (line-end-position)))))
 
 (defun panic-edit-cell()
   "Edit a cell's index"
@@ -133,7 +134,7 @@
   "Move to the next screen"
   (interactive)
   (when (> (panic-total-screens) 0)
-    (when (< panic-current-screen (1- (panic-total-screens)))
+    (when (< panic-current-screen (panic-total-screens))
       (setq panic-current-screen (1+ panic-current-screen))
       (panic-draw-screen panic-current-screen))))
 
