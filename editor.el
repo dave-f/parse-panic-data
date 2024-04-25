@@ -18,6 +18,7 @@
 
 (defvar panic-editor-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "j") 'panic-jump-to-screen)
     (define-key map (kbd "n") 'panic-next-screen)
     (define-key map (kbd "p") 'panic-prev-screen)
     (define-key map (kbd "SPC") 'panic-toggle-cell-flag)
@@ -35,7 +36,7 @@
 
 (defun panic-total-screens()
   "Return the total number of screens"
-  3)
+  46) ; 46
 
 (defun panic-write-screen-header(scr)
   "Write a screen's header data into the export buffer"
@@ -113,17 +114,17 @@
 (defun panic-get-tileset()
   (with-current-buffer "*panic parse output*"
     (goto-char (point-min))
-    (string-to-number (buffer-substring (search-forward "Tileset: " nil t 1) (line-end-position)))))
+    (string-to-number (buffer-substring (search-forward "Tileset  : " nil t 1) (line-end-position)))))
 
 (defun panic-edit-cell()
   "Edit a cell's index"
   (interactive)
-  (read-number "Index: "))
+  (read-number "Index (0-31): "))
 
 (defun panic-toggle-cell-flag()
   "Edit a cell's flags"
   (interactive)
-  (completing-read "Toggle flag: " '("Hookable" "Ladder" "Collidable" "Flipped")))
+  (completing-read "Toggle flag: " '("Hookable" "Ladder" "Collidable") nil t "^" ))
 
 (defun panic-edit-string-table()
   "Edit the string table")
@@ -131,15 +132,24 @@
 (defun panic-next-screen()
   "Move to the next screen"
   (interactive)
-  (when (< panic-current-screen 46)
-    (setq panic-current-screen (1+ panic-current-screen))
-    (panic-draw-screen panic-current-screen)))
+  (when (> (panic-total-screens) 0)
+    (when (< panic-current-screen (1- (panic-total-screens)))
+      (setq panic-current-screen (1+ panic-current-screen))
+      (panic-draw-screen panic-current-screen))))
 
 (defun panic-prev-screen()
   "Move to the previous screen"
   (interactive)
-  (when (> panic-current-screen 0)
-    (setq panic-current-screen (1- panic-current-screen))
+  (when (> (panic-total-screens) 0)
+    (when (> panic-current-screen 0)
+      (setq panic-current-screen (1- panic-current-screen))
+      (panic-draw-screen panic-current-screen))))
+
+(defun panic-jump-to-screen(arg)
+  "Jump to a screen"
+  (interactive "nJump to screen: ")
+  (when (and (>= arg 0) (< arg (panic-total-screens)))
+    (setq panic-current-screen arg)
     (panic-draw-screen panic-current-screen)))
 
 (defun panic-reset()
