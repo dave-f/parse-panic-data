@@ -33,6 +33,37 @@
       0
     -1))
 
+(defun panic-total-screens()
+  "Return the total number of screens"
+  3)
+
+(defun panic-write-screen-header(scr)
+  "Write a screen's header data into the export buffer"
+  (insert "    EQUB &00\n")
+  (insert "    EQUB &00\n")
+  (insert "    EQUB &00\n")
+  (insert "    EQUB &00,&000,&000,&00\n")
+  (insert "    EQUB &00\n\n"))
+
+(defun panic-write-screen(scr)
+  "Write a screen's bytes into the export buffer")
+
+(defun panic-write-map-data()
+  "Write map data into the export buffer"
+  (interactive)
+  (when (= (panic-total-screens) 0)
+    (error "No screens"))
+  (with-current-buffer (get-buffer-create "*panic export*")
+    (erase-buffer)
+    (insert "NUM_SCREENS = " (number-to-string (panic-total-screens)) "\n\n.mapData:\n")
+    (insert "    EQUB &00               ; Top 3 bits are tile set number, remaining 5 are index into string table\n")
+    (insert "    EQUB &00               ; Index into screen table\n")
+    (insert "    EQUB &00               ; FX bits (5) | Item present bit - cleared when this screen's item is collected  (1 bit) | Number aliens present (2 bits)\n")
+    (insert "    EQUB &00,&000,&000,&00 ; Screen exits NSEW\n")
+    (insert "    EQUB &00               ; 5 bits spare(?) | Screen has played sanity effect (1 bit) | Screen should do sanity loss effect (1 bit) | Screen has item (1 bit)\n\n")
+    (cl-loop for i from 1 below (panic-total-screens) do
+             (panic-write-screen-header i))))
+
 (defun panic-create-tiles1()
   (setq panic-tiles1 nil)
   (cl-loop for i from 0 below 8 do
