@@ -454,7 +454,7 @@ func main() {
 	for _, v := range ScreenHeaders {
 		if v[1] != 45 { // 45 is the congratulations page which we do not have data for
 			newScreen := Screen{
-				Tileset:      int(v[0] & 0xf0 >> 4),
+				Tileset:      int(v[0] >> 5),
 				LayoutIndex:  int(ScreenTable[v[1]] - 1),
 				StringIndex:  int(v[0] & 0x1f),
 				EffectFlags:  int(v[2] & 0xf0),
