@@ -10,15 +10,14 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type Tile struct {
 	Empty      bool
 	Index      int
 	FlippedX   bool
-	FlippedY   bool
 	Hookable   bool
 	Climbable  bool
 	Collidable bool
@@ -29,12 +28,13 @@ type Screen struct {
 	LayoutIndex  int
 	StringIndex  int
 	EffectFlags  int
-	HasItem      bool
 	NumberAliens int
 	ExitNorth    int
 	ExitSouth    int
 	ExitEast     int
 	ExitWest     int
+	SanityLoss   bool
+	HasItem      bool
 }
 
 type Layout struct {
@@ -167,7 +167,7 @@ loop:
 		l := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(l, "EQUW") {
 			idx := 0
-			if !strings.HasPrefix(l,"EQUW 0") && !strings.HasPrefix(l,"EQUW congratulationsScreen") {
+			if !strings.HasPrefix(l, "EQUW 0") && !strings.HasPrefix(l, "EQUW congratulationsScreen") {
 				m := LayoutRegexp.FindStringSubmatch(l)
 				if m == nil {
 					return errors.New("unexpected data in screenTable")
@@ -178,7 +178,7 @@ loop:
 			ScreenTable = append(ScreenTable, idx)
 		} else {
 			break
-        }
+		}
 	}
 
 	return scanner.Err()
@@ -338,7 +338,6 @@ func buildScreenTiles() error {
 					Empty:      thisByte == 0xff,
 					Index:      int(thisByte & 0xf),
 					FlippedX:   thisByte&0x20 == 0x20,
-					FlippedY:   false,
 					Hookable:   thisByte&0x10 == 0x10,
 					Climbable:  thisByte&0x80 == 0x80,
 					Collidable: thisByte&0x40 == 0x40,
@@ -391,9 +390,6 @@ func showScreen(s int) {
 				if j.FlippedX {
 					tileFlags[3] = 'X' // Flipped in X
 				}
-				if j.FlippedY {
-					tileFlags[4] = 'Y' // Flipped in Y
-				}
 				if j.Empty {
 					fmt.Printf("...... ")
 				} else {
@@ -406,9 +402,11 @@ func showScreen(s int) {
 
 	if s < len(Screens) {
 		showScreen(Screens[s].LayoutIndex)
-		fmt.Println("Screen :", s)
-		fmt.Println("Layout :", Screens[s].LayoutIndex)
-		fmt.Println("Tileset:", Screens[s].Tileset)
+		fmt.Println("Screen   :", s)
+		fmt.Println("Layout   :", Screens[s].LayoutIndex)
+		fmt.Println("Tileset  :", Screens[s].Tileset)
+		fmt.Println("Has Item :", Screens[s].HasItem)
+		fmt.Println("San Loss :", Screens[s].SanityLoss)
 	}
 }
 
@@ -446,10 +444,11 @@ func main() {
 	for _, v := range ScreenHeaders {
 		newScreen := Screen{
 			Tileset:      int(v[0] & 0xf0 >> 4),
-			LayoutIndex:  int(ScreenTable[v[1]]-1),
+			LayoutIndex:  int(ScreenTable[v[1]] - 1),
 			StringIndex:  int(v[0] & 0x1f),
 			EffectFlags:  int(v[2] & 0xf0),
-			HasItem:      v[2]&0x4 == 0x4,
+			HasItem:      v[7]&0x1 == 0x1,
+			SanityLoss:   v[7]&0x2 == 0x2,
 			NumberAliens: 0,
 			ExitNorth:    int(v[3]),
 			ExitSouth:    int(v[4]),
