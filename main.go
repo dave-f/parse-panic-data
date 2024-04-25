@@ -164,19 +164,26 @@ loop:
 		return scanner.Err()
 	}
 
+	offs := 0
+
 	for scanner.Scan() {
 		l := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(l, "EQUW") {
 			idx := 0
-			if !strings.HasPrefix(l, "EQUW 0") && !strings.HasPrefix(l, "EQUW congratulationsScreen") {
-				m := LayoutRegexp.FindStringSubmatch(l)
-				if m == nil {
-					return errors.New("unexpected data in screenTable")
+			if !strings.HasPrefix(l, "EQUW congratulationsScreen") {
+				if strings.HasPrefix(l,"EQUW 0") {
+					offs++
 				} else {
-					idx, _ = strconv.Atoi(m[1])
+					m := LayoutRegexp.FindStringSubmatch(l)
+					if m == nil {
+						return errors.New("unexpected data in screenTable")
+					} else {
+						idx, _ = strconv.Atoi(m[1])
+						idx = idx - offs
+					}
 				}
+				ScreenTable = append(ScreenTable, idx)
 			}
-			ScreenTable = append(ScreenTable, idx)
 		} else {
 			break
 		}
@@ -403,8 +410,8 @@ func showScreen(s int) {
 
 	if s < len(Screens) {
 		showScreen(Screens[s].LayoutIndex)
-		fmt.Println("Screen   :", s)
-		fmt.Println("String   :", Screens[s].StringIndex, "(", StringTable[Screens[s].StringIndex], ")")
+		fmt.Printf("Screen   : %d/%d\n", s, len(Screens)-1)
+		fmt.Printf("String   : %d(%s)\n", Screens[s].StringIndex, StringTable[Screens[s].StringIndex])
 		fmt.Println("Layout   :", Screens[s].LayoutIndex)
 		fmt.Println("Tileset  :", Screens[s].Tileset)
 		fmt.Println("Has Item :", Screens[s].HasItem)
@@ -445,20 +452,22 @@ func main() {
 
 	// Build proper level structure ready to marshal to XML/JSON
 	for _, v := range ScreenHeaders {
-		newScreen := Screen{
-			Tileset:      int(v[0] & 0xf0 >> 4),
-			LayoutIndex:  int(ScreenTable[v[1]] - 1),
-			StringIndex:  int(v[0] & 0x1f),
-			EffectFlags:  int(v[2] & 0xf0),
-			HasItem:      v[7]&0x1 == 0x1,
-			SanityLoss:   v[7]&0x2 == 0x2,
-			NumberAliens: 0,
-			ExitNorth:    int(v[3]),
-			ExitSouth:    int(v[4]),
-			ExitEast:     int(v[5]),
-			ExitWest:     int(v[6]),
+		if v[1] != 45 { // 45 is the congratulations page which we do not have data for
+			newScreen := Screen{
+				Tileset:      int(v[0] & 0xf0 >> 4),
+				LayoutIndex:  int(ScreenTable[v[1]] - 1),
+				StringIndex:  int(v[0] & 0x1f),
+				EffectFlags:  int(v[2] & 0xf0),
+				HasItem:      v[7]&0x1 == 0x1,
+				SanityLoss:   v[7]&0x2 == 0x2,
+				NumberAliens: 0,
+				ExitNorth:    int(v[3]),
+				ExitSouth:    int(v[4]),
+				ExitEast:     int(v[5]),
+				ExitWest:     int(v[6]),
+			}
+			Screens = append(Screens, newScreen)
 		}
-		Screens = append(Screens, newScreen)
 	}
 
 	if *scr != -1 {
