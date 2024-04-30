@@ -32,16 +32,10 @@
 
 (define-derived-mode panic-editor-mode fundamental-mode "Panic Edit")
 
-;; TODO check this will be needed
-(defun tileset-index-to-tile-offset(index)
-  (if (< index 8)
-      0
-    -1))
-
 (cl-defun panic-point-to-tile-offset()
-  (when (> (line-number-at-pos) 12)
+  (when (> (line-number-at-pos) panic-row-count)
     (cl-return-from panic-point-to-tile-offset -1))
-  (when (> (current-column) 7)
+  (when (> (current-column) (1- panic-col-count))
     (cl-return-from panic-point-to-tile-offset -1))
   (+ (current-column) (* panic-col-count (1- (line-number-at-pos)))))
 
