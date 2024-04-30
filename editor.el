@@ -1,6 +1,7 @@
 ;; Mountain panic level editor
 
 (defvar panic-screens nil "List of screens")
+(defvar panic-screens-info nil "List of information for each screen")
 (defvar panic-current-screen 0 "Current screen we are editing")
 (defvar panic-tiles1 nil "A list of tile image slices")
 (defvar panic-tiles2 nil "A list of tile image slices")
@@ -188,18 +189,25 @@
   (setq panic-tiles2 nil)
   (setq panic-blank-tile nil)
   (setq panic-tile-image nil)
-  (setq panic-tile-image-flipped nil))
+  (setq panic-tile-image-flipped nil)
+  (setq panic-screens nil)
+  (setq panic-screens-info nil))
 
 (defun panic-editor()
   "Start editing data for Mountain Panic 2"
   (interactive)
   (panic-reset)
-  (panic-load-data)
-  (switch-to-buffer (get-buffer-create "*Panic Editor*"))
-  (setq panic-current-screen 0)
-  (panic-draw-screen panic-current-screen)
-  (panic-editor-mode)
-  (message "Move around with cursor keys, RET to edit cell, s to save, q to quit, j jump to screen"))
+  (if (= 0 (panic-load-data))
+      (progn
+        (message "Data parse error")
+        nil)
+    (progn
+      (switch-to-buffer (get-buffer-create "*Panic Editor*"))
+      (setq panic-current-screen 0)
+      (panic-draw-screen panic-current-screen) ; TODO
+      (panic-editor-mode)
+      (message "Move around with cursor keys; RET to edit cell; SPC edit flags; s to save; j jump to screen; q to quit")
+      t)))
 
 (defun panic-load-screen(arg)
   "Load a screen from the original assembler data."
@@ -222,16 +230,30 @@
                      (push new-row new-screen))
                    (forward-line))
           (reverse new-screen))
-      (message "Not enough lines"))))
+      nil)))
 
-(defun panic-load-data()
-  "Loads level data")
+(cl-defun panic-load-data()
+  "Loads level data by creating new output.json and parsing it. Returns number of screens parsed."
+  (setq panic-screens nil)
+  (setq panic-screens-info nil)
+  (when (/= 0 (shell-command panic-parse-tool))
+    (cl-return-from panic-load-data 0))
+  (let ((pr (make-progress-reporter "Working..."))
+        (l (funcall (lambda()
+                      (with-current-buffer shell-command-buffer-name
+                        (goto-char (point-min))
+                        (if (search-forward-regexp "Written \\([0-9]+\\) screens" nil t)
+                            (string-to-number (buffer-substring (match-beginning 1) (match-end 1)))
+                          0))))))
+    (cl-loop for i below l do
+             (let ((s (panic-load-screen i)))
+               (when s
+                 ; TODO also get screen data such as tileset etc
+                 (progress-reporter-update pr)
+                 (push (panic-load-screen i) panic-screens))))
+    (progress-reporter-done pr))
+  (length panic-screens))
 
 (defun panic-save-data()
   "Saves level data")
-
-
-;; TODO
-;; (setq level-data (json-read-file (expand-file-name "./output.json")))
-;; (length (cdr (nth 1 level-data))) ; 50 screens
 
