@@ -240,7 +240,10 @@
     (cl-return-from panic-load-data 0))
   (let ((pr (make-progress-reporter "Working..."))
         (l (funcall (lambda()
-                      (with-current-buffer shell-command-buffer-name
+                      (with-current-buffer
+                          (if (< emacs-major-version 27)
+                              "*Shell Command Output*"
+                            shell-command-buffer-name)
                         (goto-char (point-min))
                         (if (search-forward-regexp "Written \\([0-9]+\\) screens" nil t)
                             (string-to-number (buffer-substring (match-beginning 1) (match-end 1)))
