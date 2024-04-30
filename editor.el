@@ -23,6 +23,10 @@
     (define-key map (kbd "p") 'panic-prev-screen)
     (define-key map (kbd "SPC") 'panic-toggle-cell-flag)
     (define-key map (kbd "RET") 'panic-edit-cell)
+    (define-key map (kbd "<up>") 'panic-up)
+    (define-key map (kbd "<down>") 'panic-down)
+    (define-key map (kbd "<left>") 'panic-left)
+    (define-key map (kbd "<right>") 'panic-right)
     (define-key map (kbd "q") #'(lambda() (interactive) (kill-buffer "*Panic Editor*")))
     map))
 
@@ -33,6 +37,38 @@
   (if (< index 8)
       0
     -1))
+
+(cl-defun panic-point-to-tile-offset()
+  (when (> (line-number-at-pos) 12)
+    (cl-return-from panic-point-to-tile-offset -1))
+  (when (> (current-column) 7)
+    (cl-return-from panic-point-to-tile-offset -1))
+  (+ (current-column) (* panic-col-count (1- (line-number-at-pos)))))
+
+(defun panic-tile-message()
+  (let ((i (panic-point-to-tile-offset)))
+    (when (/= i -1)
+      (message (number-to-string i)))))
+
+(defun panic-up()
+  (interactive)
+  (forward-char (- -1 panic-col-count))
+  (panic-tile-message))
+
+(defun panic-down()
+  (interactive)
+  (forward-char (1+ panic-col-count))
+  (panic-tile-message))
+
+(defun panic-left()
+  (interactive)
+  (left-char)
+  (panic-tile-message))
+
+(defun panic-right()
+  (interactive)
+  (right-char)
+  (panic-tile-message))
 
 (defun panic-write-screen-header(scr)
   "Write a screen's header data into the export buffer"
