@@ -1,7 +1,7 @@
 ;; Mountain panic level editor
 
 (defvar panic-screens nil "List of screens")
-(defvar panic-screens-info nil "List of information for each screen")
+(defvar panic-screens-info nil "List of information for each screen, currently just tileset")
 (defvar panic-current-screen 0 "Current screen we are editing")
 (defvar panic-tiles1 nil "A list of tile image slices")
 (defvar panic-tiles2 nil "A list of tile image slices")
@@ -123,8 +123,8 @@
   (when (eq panic-blank-tile nil)
     (panic-create-blank-tile))
   (erase-buffer)
-  (let ((scr (panic-load-screen arg))
-        (tls (panic-get-tileset)))
+  (let ((scr (nth arg panic-screens))
+        (tls (nth arg panic-screens-info)))
     (cl-loop for i from 0 below (length scr) do
              (cl-loop for j in (nth i scr) do
                       (let ((idx (car j))
@@ -137,16 +137,6 @@
                                 (insert-image panic-tile-image nil nil (nth idx panic-tiles1)))
                             (insert-image panic-tile-image nil nil (nth idx panic-tiles2))))))
              (newline))))
-
-(defun panic-get-tileset()
-  (with-current-buffer "*panic parse output*"
-    (goto-char (point-min))
-    (string-to-number (buffer-substring (search-forward-regexp "Tileset *: *" nil t 1) (line-end-position)))))
-
-(defun panic-total-screens()
-  (with-current-buffer "*panic parse output*"
-    (goto-char (point-min))
-    (string-to-number (buffer-substring (search-forward-regexp "Screen *: *[0-9]+/") (line-end-position)))))
 
 (defun panic-edit-cell()
   "Edit a cell's index"
@@ -232,6 +222,11 @@
           (reverse new-screen))
       nil)))
 
+(defun panic-total-screens()
+  (if (= 0 (length panic-screens))
+      0
+    (1- (length panic-screens))))
+
 (cl-defun panic-load-data()
   "Loads level data by creating new output.json and parsing it. Returns number of screens parsed."
   (setq panic-screens nil)
@@ -251,9 +246,15 @@
     (cl-loop for i below l do
              (let ((s (panic-load-screen i)))
                (when s
-                 ; TODO also get screen data such as tileset etc
                  (progress-reporter-update pr)
-                 (push (panic-load-screen i) panic-screens))))
+                 (push (funcall (lambda()
+                                  (with-current-buffer "*panic parse output*"
+                                    (goto-char (point-min))
+                                    (string-to-number (buffer-substring (search-forward-regexp "Tileset *: *" nil t 1) (line-end-position))))))
+                       panic-screens-info)
+                 (push s panic-screens))))
+    (setq panic-screens (reverse panic-screens))
+    (setq panic-screens-info (reverse panic-screens-info))
     (progress-reporter-done pr))
   (length panic-screens))
 
