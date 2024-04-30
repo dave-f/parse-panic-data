@@ -33,17 +33,14 @@
 
 (define-derived-mode panic-editor-mode fundamental-mode "Panic Edit")
 
-(cl-defun panic-point-to-tile-offset()
+(cl-defun panic-tile-message()
   (when (> (line-number-at-pos) panic-row-count)
-    (cl-return-from panic-point-to-tile-offset -1))
+    (cl-return-from panic-tile-message nil))
   (when (> (current-column) (1- panic-col-count))
-    (cl-return-from panic-point-to-tile-offset -1))
-  (+ (current-column) (* panic-col-count (1- (line-number-at-pos)))))
-
-(defun panic-tile-message()
-  (let ((i (panic-point-to-tile-offset)))
-    (when (/= i -1)
-      (message (number-to-string i)))))
+    (cl-return-from panic-tile-message nil))
+  (let ((row (1- (line-number-at-pos)))
+        (col (current-column)))
+    (message (nth 1 (nth col (nth row (nth panic-current-screen panic-screens)))))))
 
 (defun panic-up()
   (interactive)
